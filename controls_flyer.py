@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Starter code for the controls project.
-This is the solution of the backyard flyer script, 
+This is the solution of the backyard flyer script,
 modified for all the changes required to get it working for controls.
 """
 
@@ -15,7 +15,7 @@ from unity_drone import UnityDrone
 from controller import NonlinearController
 from udacidrone.connection import MavlinkConnection  # noqa: F401
 from udacidrone.messaging import MsgID
-
+from performance_visualizer import SavePerformanceReport
 
 class States(Enum):
     MANUAL = 0
@@ -44,11 +44,11 @@ class ControlsFlyer(UnityDrone):
                                self.local_position_callback)
         self.register_callback(MsgID.LOCAL_VELOCITY, self.velocity_callback)
         self.register_callback(MsgID.STATE, self.state_callback)
-        
+
         self.register_callback(MsgID.ATTITUDE, self.attitude_callback)
         self.register_callback(MsgID.RAW_GYROSCOPE, self.gyro_callback)
-        
-    def position_controller(self):  
+
+    def position_controller(self):
         (self.local_position_target,
          self.local_velocity_target,
          yaw_cmd) = self.controller.trajectory_control(
@@ -64,7 +64,7 @@ class ControlsFlyer(UnityDrone):
         self.local_acceleration_target = np.array([acceleration_cmd[0],
                                                    acceleration_cmd[1],
                                                    0.0])
-        
+
     def attitude_controller(self):
         self.thrust_cmd = self.controller.altitude_control(
                 -self.local_position_target[2],
@@ -82,8 +82,8 @@ class ControlsFlyer(UnityDrone):
                 self.attitude[2])
         self.body_rate_target = np.array(
                 [roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1], yawrate_cmd])
-        
-    def bodyrate_controller(self):        
+
+    def bodyrate_controller(self):
         moment_cmd = self.controller.body_rate_control(
                 self.body_rate_target,
                 self.gyro_raw)
@@ -91,11 +91,11 @@ class ControlsFlyer(UnityDrone):
                         moment_cmd[1],
                         moment_cmd[2],
                         self.thrust_cmd)
-    
+
     def attitude_callback(self):
         if self.flight_state == States.WAYPOINT:
             self.attitude_controller()
-    
+
     def gyro_callback(self):
         if self.flight_state == States.WAYPOINT:
             self.bodyrate_controller()
@@ -153,7 +153,7 @@ class ControlsFlyer(UnityDrone):
         # set the current location to be the home position
         self.set_home_position(self.global_position[0],
                                self.global_position[1],
-                               self.global_position[2])  
+                               self.global_position[2])
 
         self.flight_state = States.ARMING
 
@@ -202,7 +202,6 @@ class ControlsFlyer(UnityDrone):
 
         self.stop_log()
 
-
 if __name__ == "__main__":
     conn = MavlinkConnection('tcp:127.0.0.1:5760', threaded=False, PX4=False)
     #conn = WebSocketConnection('ws://127.0.0.1:5760')
@@ -210,3 +209,6 @@ if __name__ == "__main__":
     time.sleep(2)
     drone.start()
     drone.print_mission_score()
+
+    SavePerformanceReport(np.matrix(drone.desired_positions),
+                          np.matrix(drone.actual_positions))
